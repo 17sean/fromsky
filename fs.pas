@@ -19,7 +19,24 @@ type
 
 	GameMenuSubs = array [1..4] of GameMenuSub;
 
-procedure InitAll(var map: GameMap; var MenuSubs: GameMenuSubs);
+	GameSide = (top, bottom);
+	
+	GameBird = record
+		CurX, CurY, MaxTop, MaxBottom: integer;
+		symb, dead: char;
+		side: GameSide;
+	end;
+
+	GameProp = record
+		CurX, CurY, MaxTop, MaxBottom: integer;
+		symb: char;
+	end;
+
+
+procedure InitAll(
+		var map: GameMap;
+	       	var MenuSubs: GameMenuSubs;
+	       	var bird: GameBird);
 begin
 	map.h := 14;
 	map.w := 36;
@@ -38,6 +55,13 @@ begin
 	MenuSubs[4].HomeX := map.HomeX + ((map.w - length('Exit')) div 2);
 	MenuSubs[4].HomeY := map.HomeY + ((map.h + 4) div 2);
 	MenuSubs[4].contain := 'Exit';
+
+	bird.CurX := map.HomeX + 4;
+	bird.CurY := map.HomeY + (map.h) div 2;
+	bird.MaxTop := map.HomeY;
+	bird.MaxBottom := map.HomeY + map.h;
+	bird.symb := '>';
+	bird.dead := '~';
 end;
 
 procedure CheckScreen(map: GameMap);
@@ -226,20 +250,126 @@ begin
 	end;
 end;
 
-procedure StartMenu(var map: GameMap);
+procedure StartMenu(var map: GameMap; var bird: GameBird);
 var
 	MenuSubs: GameMenuSubs;
 begin
-	InitAll(map, MenuSubs);
+	InitAll(map, MenuSubs, bird);
 	CheckScreen(map);
 	StartMessage(map);
 	ControlMenu(map, MenuSubs); 
+	clrscr;
+end;
+
+procedure LoseEvent;
+begin
+	GotoXY((ScreenWidth - 10) div 2, ScreenHeight div 2);
+	write('You lose...');
+	delay(2000);
+	clrscr;
+	halt;
+end;
+
+procedure WinEvent;
+begin
+
+end;
+
+procedure HideBird(bird: GameBird);
+begin
+	GotoXY(bird.CurX, bird.CurY);
+	write(' ');
+end;
+
+procedure ShowBird(bird: GameBird);
+begin
+	GotoXY(bird.CurX, bird.CurY);
+	write(bird.symb);
+end;
+
+procedure MoveBird(var bird: GameBird);
+begin
+	case bird.side of
+		top:
+		begin
+			if bird.CurY - 1 = bird.MaxTop then
+				exit;
+			HideBird(bird);
+			bird.CurY := bird.CurY - 1;
+			ShowBird(bird);
+		end;
+		bottom:
+		begin
+			if bird.CurY + 1 = bird.MaxBottom then
+			begin
+				Delay(500);
+				LoseEvent;
+			end;
+			HideBird(bird);
+			bird.CurY := bird.CurY + 1;
+			ShowBird(bird);	
+		end;
+	end;
+end;
+
+procedure HideProp(prop: GameProp);
+begin
+
+end;
+
+procedure ShowProp(prop: GameProp);
+begin
+
+end;
+
+procedure MoveProp(var prop: GameProp);
+begin
+
+end;
+
+procedure CollisionCheck(bird: GameBird; prop: GameProp);
+begin
+
 end;
 
 var
 	map: GameMap;
+	bird: GameBird;
+	prop: GameProp;
+	ch: char;
 begin
-	StartMenu(map);
-	readln;
-	clrscr;
+	randomize;
+	StartMenu(map, bird);
+	DrawMap(map);
+	ShowBird(bird);
+	ShowProp(prop);
+	GotoXY(bird.CurX, bird.MaxTop);
+	write('end');	
+	GotoXY(bird.CurX, bird.MaxBottom);
+	write('end');
+
+	while true do
+	begin
+		ch := #0;
+		if KeyPressed then
+			ch := ReadKey;	
+		if ch = 'w' then
+		begin
+			bird.side := top;
+			MoveBird(bird);
+		end
+		else if ch = #27 then
+		begin
+			clrscr;
+			halt
+		end
+		else
+		begin
+			bird.side := bottom;
+			MoveBird(bird);
+		end;
+		delay(200);
+		CollisionCheck(bird, prop);
+		MoveProp(prop);
+	end;
 end.
