@@ -28,7 +28,8 @@ type
 	end;
 
 	GameProp = record
-		CurX, CurY, MaxTop, MaxBottom: integer;
+		HomeX, HomeY, CurX, CurY, MaxCurX: integer;
+		empty: array [1..3] of integer;
 		symb: char;
 	end;
 
@@ -36,7 +37,10 @@ type
 procedure InitAll(
 		var map: GameMap;
 	       	var MenuSubs: GameMenuSubs;
-	       	var bird: GameBird);
+	       	var bird: GameBird;
+		var prop: GameProp);
+var
+	i, j: integer;
 begin
 	map.h := 14;
 	map.w := 36;
@@ -62,6 +66,20 @@ begin
 	bird.MaxBottom := map.HomeY + map.h;
 	bird.symb := '>';
 	bird.dead := '~';
+
+	prop.HomeX := map.HomeX + map.w - 5;
+	prop.HomeY := map.HomeY + 1;
+	prop.CurX := prop.HomeX;
+	prop.CurY := prop.HomeY;
+	prop.MaxCurX := map.HomeX + 1;
+
+	j := 4;
+	for i := 1 to 3 do
+	begin
+		prop.empty[i] := prop.CurY + j;
+		j := j + 1;
+	end;
+	prop.symb := '|';
 end;
 
 procedure CheckScreen(map: GameMap);
@@ -250,11 +268,11 @@ begin
 	end;
 end;
 
-procedure StartMenu(var map: GameMap; var bird: GameBird);
+procedure StartMenu(var map: GameMap; var bird: GameBird; var prop: GameProp);
 var
 	MenuSubs: GameMenuSubs;
 begin
-	InitAll(map, MenuSubs, bird);
+	InitAll(map, MenuSubs, bird, prop);
 	CheckScreen(map);
 	StartMessage(map);
 	ControlMenu(map, MenuSubs); 
@@ -300,11 +318,6 @@ begin
 		end;
 		bottom:
 		begin
-			if bird.CurY + 1 = bird.MaxBottom then
-			begin
-				Delay(500);
-				LoseEvent;
-			end;
 			HideBird(bird);
 			bird.CurY := bird.CurY + 1;
 			ShowBird(bird);	
@@ -312,23 +325,86 @@ begin
 	end;
 end;
 
-procedure HideProp(prop: GameProp);
+function IsEmpty(prop: GameProp; i: integer): boolean;
+var
+	j: integer;
 begin
+	for j := 1 to 3 do
+	begin
+		if prop.empty[j] = i then
+		begin
+			IsEmpty := true;
+			exit;
+		end;
+	end;
+	IsEmpty := false;
+end;
 
+procedure HideProp(prop: GameProp); { todo change for sravnit koordinati }
+var
+	i, CurX, CurY: integer;
+begin
+	CurX := prop.CurX;
+	CurY := prop.CurY;
+	GotoXY(CurX, prop.CurY);
+	for i := 1 to 12 do
+	begin
+		if not IsEmpty(prop, i) then
+			write(' ');
+		CurY := CurY + 1;
+		GotoXY(CurX, CurY);
+	end;
 end;
 
 procedure ShowProp(prop: GameProp);
+var
+	i, CurX, CurY: integer;
 begin
-
+	CurX := prop.CurX;
+	CurY := prop.CurY;
+	GotoXY(CurX, CurY);
+	for i := 1 to 12 do
+	begin
+		if not IsEmpty(prop, i) then
+			write(prop.symb);
+		CurY := CurY + 1;
+		GotoXY(CurX, CurY);
+	end;
 end;
 
 procedure MoveProp(var prop: GameProp);
 begin
-
+	HideProp(prop);
+	if prop.CurX = prop.MaxCurX then
+		prop.CurX := prop.HomeX
+	else
+		prop.CurX := prop.CurX - 1;
+	ShowProp(prop);
+	
 end;
 
 procedure CollisionCheck(bird: GameBird; prop: GameProp);
+var
+	i: integer;
 begin
+	if (bird.CurY + 1 = bird.MaxBottom) then
+	begin
+		GotoXY(bird.CurX, bird.CurY);
+		write(bird.dead);
+		Delay(500);
+		LoseEvent;
+	end;
+	if (bird.CurX = prop.CurX) and (not IsEmpty(prop, bird.CurY)) then
+	begin
+		for i := 1 to 3 do
+			write(prop.empty[i], #9);
+		write(bird.CurY);
+		GotoXY(bird.CurX, bird.CurY);
+		write(bird.dead);
+		Delay(500);
+		LoseEvent;
+	end;
+
 
 end;
 
@@ -339,14 +415,10 @@ var
 	ch: char;
 begin
 	randomize;
-	StartMenu(map, bird);
+	StartMenu(map, bird, prop);
 	DrawMap(map);
 	ShowBird(bird);
 	ShowProp(prop);
-	GotoXY(bird.CurX, bird.MaxTop);
-	write('end');	
-	GotoXY(bird.CurX, bird.MaxBottom);
-	write('end');
 
 	while true do
 	begin
@@ -368,8 +440,8 @@ begin
 			bird.side := bottom;
 			MoveBird(bird);
 		end;
+		CollisionCheck(bird, prop);	
 		delay(200);
-		CollisionCheck(bird, prop);
 		MoveProp(prop);
 	end;
 end.

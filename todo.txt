@@ -1,0 +1,5 @@
+do more patterns of prop;
+do collision;
+make speed;
+make record;
+make show metres;
