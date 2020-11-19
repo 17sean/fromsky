@@ -404,7 +404,13 @@ begin
 	write('Flew: ', flew, 'm');
 end;
 
-procedure MoveProp(var prop: GameProp; var flew: integer; speed: integer);
+procedure SpeedChanger(flew: integer; var speed: integer);
+begin
+	if flew mod 50 = 0 then
+		speed := round(speed * 0.85);
+end;
+
+procedure MoveProp(var prop: GameProp; var flew, speed: integer);
 begin
 	Delay(speed);
 	HideProp(prop);
@@ -415,6 +421,7 @@ begin
 	ShowProp(prop);
 	flew := flew + 1;
 	ShowFlew(flew);
+	SpeedChanger(flew, speed);
 end;
 
 procedure CollisionCheck(
