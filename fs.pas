@@ -5,6 +5,7 @@ const
 	Author = 'By 17sean';
 	Game = 'From Sky';
 	RecordFileName = 'record.bin';
+	PatternFileName = 'patterns.txt';
 
 type
 	GameMap = record
@@ -29,20 +30,26 @@ type
 
 	GameProp = record
 		HomeX, HomeY, CurX, CurY, MaxCurX: integer;
-		empty: array [1..3] of integer;
 		symb: char;
 	end;
 
+	PPattern = ^GamePattern;
+	GamePattern = record
+		data: integer;
+		next: PPattern;
+	end;
 
 procedure InitAll(
 		var map: GameMap;
 	       	var MenuSubs: GameMenuSubs;
 	       	var bird: GameBird;
 		var prop: GameProp;
-		var flew, recordflew, speed: integer);
+		var flew, recordflew, speed: integer;
+		var fpattern: PPattern);
 var
-	i, j: integer;
 	RecordFile: file of integer;
+	PatternFile: text;
+	tmp: PPattern;
 begin
 	map.h := 14;
 	map.w := 36;
@@ -75,12 +82,6 @@ begin
 	prop.CurY := prop.HomeY;
 	prop.MaxCurX := map.HomeX + 1;	
 	prop.symb := '|';
-	j := 4;
-	for i := 1 to 3 do
-	begin
-		prop.empty[i] := map.HomeY + j;
-		j := j + 1;
-	end;
 
 	{$I-}
 	assign(RecordFile, RecordFileName);
@@ -94,10 +95,32 @@ begin
 	else
 		read(RecordFile, recordflew);
 	close(RecordFile);
-	{$I+}
 	flew := 0;
-	
 	speed := 200;
+
+	assign(PatternFile, PatternFileName);
+	reset(PatternFile);
+	if IOResult <> 0 then
+	begin
+		write(ErrOutput, 'Error, couldn''t open ', PatternFileName);
+		halt(1);
+	end;
+	fpattern := nil;
+	while not Eof(PatternFile) do
+	begin
+		new(tmp);
+		readln(PatternFile, tmp^.data);
+		if (tmp^.data = 0) or (tmp^.data > 10) then
+		begin
+			dispose(tmp);
+			break;
+		end;
+		tmp^.data := tmp^.data + map.HomeY;
+		tmp^.next := fpattern;
+		fpattern := tmp;
+	end;
+	close(PatternFile);
+	{$I+}
 end;
 
 procedure CheckScreen(map: GameMap);
@@ -293,11 +316,13 @@ procedure StartMenu(
 		var map: GameMap;
 	       	var bird: GameBird;
 	       	var prop: GameProp;
-	       	var flew, recordflew, speed: integer);
+	       	var flew, recordflew, speed: integer;
+		var fpattern: PPattern);
 var
 	MenuSubs: GameMenuSubs;
 begin
-	InitAll(map, MenuSubs, bird, prop, flew, recordflew, speed);
+	InitAll(map, MenuSubs, bird, prop, flew,
+	       	recordflew, speed, fpattern);
 	CheckScreen(map);
 	StartMessage(map);
 	ControlMenu(map, MenuSubs, recordflew); 
@@ -359,13 +384,52 @@ begin
 	end;
 end;
 
-function IsEmpty(prop: GameProp; i: integer): boolean;
+procedure HandleArrowKey(var bird: GameBird);
 var
-	j: integer;
+	ch: char;
 begin
-	for j := 1 to 3 do
+	ch := #0;
+	if KeyPressed then
+		ch := ReadKey;	
+	if ch = 'w' then
 	begin
-		if prop.empty[j] = i then
+		bird.side := top;
+		MoveBird(bird);
+	end
+	else if ch = #27 then
+	begin
+		clrscr;
+		halt
+	end
+	else
+	begin
+		bird.side := bottom;
+		MoveBird(bird);
+	end;
+end;
+
+function RandomPattern(fpattern: PPattern): PPattern;
+var
+	i: integer;
+begin
+	RandomPattern := fpattern;
+	for i := 1 to random(10)+1 do
+	begin
+		if RandomPattern^.next = nil then
+			RandomPattern := fpattern
+		else
+			RandomPattern := RandomPattern^.next;
+	end;
+end;
+
+function IsEmpty(prop: GameProp; pattern: PPattern; emptyY: integer)
+								: boolean;
+var
+	i: integer;
+begin
+	for i := 0 to 2 do
+	begin
+		if pattern^.data + i = emptyY then
 		begin
 			IsEmpty := true;
 			exit;
@@ -374,26 +438,26 @@ begin
 	IsEmpty := false;
 end;
 
-procedure HideProp(prop: GameProp);
+procedure HideProp(prop: GameProp; pattern: PPattern);
 var
 	i: integer;
 begin
 	for i := 0 to 11 do
 	begin
 		GotoXY(prop.CurX, prop.CurY+i);
-		if not IsEmpty(prop, prop.CurY+i) then
+		if not IsEmpty(prop, pattern, prop.CurY+i) then
 			write(' ');
 	end;
 end;
 
-procedure ShowProp(prop: GameProp);
+procedure ShowProp(prop: GameProp; pattern: PPattern);
 var
 	i: integer;
 begin
 	for i := 0 to 11 do
 	begin
 		GotoXY(prop.CurX, prop.CurY+i);
-		if not IsEmpty(prop, prop.CurY+i) then
+		if not IsEmpty(prop, pattern, prop.CurY+i) then
 			write(prop.symb);
 	end;
 end;
@@ -407,18 +471,24 @@ end;
 procedure SpeedChanger(flew: integer; var speed: integer);
 begin
 	if flew mod 50 = 0 then
-		speed := round(speed * 0.85);
+		speed := round(speed * 0.9);
 end;
 
-procedure MoveProp(var prop: GameProp; var flew, speed: integer);
+procedure MoveProp(
+		var prop: GameProp;
+	       	var fpattern, pattern: PPattern;
+	       	var flew, speed: integer);
 begin
 	Delay(speed);
-	HideProp(prop);
+	HideProp(prop, pattern);
 	if prop.CurX = prop.MaxCurX then
-		prop.CurX := prop.HomeX
+	begin
+		prop.CurX := prop.HomeX;
+		pattern := RandomPattern(fpattern);
+	end
 	else
 		prop.CurX := prop.CurX - 1;
-	ShowProp(prop);
+	ShowProp(prop, pattern);
 	flew := flew + 1;
 	ShowFlew(flew);
 	SpeedChanger(flew, speed);
@@ -427,54 +497,47 @@ end;
 procedure CollisionCheck(
 			bird: GameBird;
 		       	prop: GameProp;
+			pattern: PPattern;
 		       	flew, recordflew: integer);
 begin
 	if (bird.CurY + 1 = bird.MaxBottom) or
        	((bird.CurX = prop.CurX) and
-       	(not IsEmpty(prop, bird.CurY))) then
+       	(not IsEmpty(prop, pattern, bird.CurY))) then
 	begin
 		GotoXY(bird.CurX, bird.CurY);
 		write(bird.dead);
 		Delay(500);
 		LoseEvent(flew, recordflew);
 	end;
+end;
 
-
+procedure StartOperations(
+			map: GameMap;
+		       	bird: GameBird;
+			prop: GameProp;
+		       	fpattern: PPattern;
+		       	var pattern: PPattern);
+begin
+	DrawMap(map);
+	ShowBird(bird);
+	pattern := RandomPattern(fpattern);
+	ShowProp(prop, pattern);
 end;
 
 var
 	map: GameMap;
 	bird: GameBird;
 	prop: GameProp;
-	ch: char;
 	flew, recordflew, speed: integer;
+	fpattern, pattern: PPattern;
 begin
 	randomize;
-	StartMenu(map, bird, prop, flew, recordflew, speed);
-	DrawMap(map);
-	ShowBird(bird);
-	ShowProp(prop);
+	StartMenu(map, bird, prop, flew, recordflew, speed, fpattern);
+	StartOperations(map, bird, prop, fpattern, pattern);
 	while true do
 	begin
-		ch := #0;
-		if KeyPressed then
-			ch := ReadKey;	
-		if ch = 'w' then
-		begin
-			bird.side := top;
-			MoveBird(bird);
-		end
-		else if ch = #27 then
-		begin
-			clrscr;
-			halt
-		end
-		else
-		begin
-			bird.side := bottom;
-			MoveBird(bird);
-		end;
-		CollisionCheck(bird, prop, flew, recordflew);
-		MoveProp(prop, flew, speed);
+		HandleArrowKey(bird);
+		CollisionCheck(bird, prop, pattern, flew, recordflew);
+		MoveProp(prop, fpattern, pattern, flew, speed);
 	end;
 end.

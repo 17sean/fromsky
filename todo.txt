@@ -1,1 +1,0 @@
-do more patterns of prop in text file;
