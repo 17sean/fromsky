@@ -4,7 +4,7 @@ uses crt;
 const
 	Author = 'By 17sean';
 	Game = 'From Sky';
-	RecordFile = 'record.bin';
+	RecordFileName = 'record.bin';
 
 type
 	GameMap = record
@@ -38,9 +38,11 @@ procedure InitAll(
 		var map: GameMap;
 	       	var MenuSubs: GameMenuSubs;
 	       	var bird: GameBird;
-		var prop: GameProp);
+		var prop: GameProp;
+		var flew, recordflew, speed: integer);
 var
 	i, j: integer;
+	RecordFile: file of integer;
 begin
 	map.h := 14;
 	map.w := 36;
@@ -73,12 +75,29 @@ begin
 	prop.CurY := prop.HomeY;
 	prop.MaxCurX := map.HomeX + 1;	
 	prop.symb := '|';
-	j := 6;
+	j := 4;
 	for i := 1 to 3 do
 	begin
 		prop.empty[i] := map.HomeY + j;
 		j := j + 1;
 	end;
+
+	{$I-}
+	assign(RecordFile, RecordFileName);
+	reset(RecordFile);
+	if IOresult <> 0 then
+	begin
+		rewrite(RecordFile);
+		write(RecordFile, 0);
+		recordflew := 0;
+	end
+	else
+		read(RecordFile, recordflew);
+	close(RecordFile);
+	{$I+}
+	flew := 0;
+	
+	speed := 200;
 end;
 
 procedure CheckScreen(map: GameMap);
@@ -172,29 +191,32 @@ begin
 	end;
 end;
 
-procedure DrawSubMenu(Map: GameMap; MenuSubs: GameMenuSubs);
-var
-	i: integer;
-	rec: file of integer;
+procedure DrawSubMenu(
+		Map: GameMap;
+	       	MenuSubs: GameMenuSubs;
+	       	recordflew: integer);
 begin
-	{$I-}
 	DrawMap(map);
-	GotoXY((ScreenWidth - 15) div 2, ScreenHeight div 2);
-	assign(rec, RecordFile);
-	reset(rec);
-	if IOresult <> 0 then
-		write('Seem no records')
-	else
+	if recordflew = 0 then
 	begin
-		read(rec, i);
-		write('Record: ', i);
-		close(rec);
+		GotoXY((
+			ScreenWidth - length('Seems no records')) div 2,
+		       	ScreenHeight div 2);
+		write('Seems no records');
+	end
+	else
+	begin	
+		GotoXY((ScreenWidth - 12) div 2, ScreenHeight div 2);
+		write('Record: ', recordflew, 'm');
 	end;
 	GotoXY(MenuSubs[4].HomeX, MenuSubs[4].HomeY);
 	write(MenuSubs[4].contain);
 end;
 
-procedure ControlMenu(map: GameMap; MenuSubs: GameMenuSubs);
+procedure ControlMenu(
+		map: GameMap;
+	       	MenuSubs: GameMenuSubs;
+	       	recordflew: integer);
 type
 	MenuCurrent = record
 		symb: char;
@@ -215,7 +237,7 @@ begin
 				exit;
 			2:
 			begin
-				DrawSubMenu(map, MenuSubs);
+				DrawSubMenu(map, MenuSubs, recordflew);
 				cur.status := 4;
 				GotoXY(
 					MenuSubs[cur.status].HomeX-2,
@@ -267,29 +289,42 @@ begin
 	end;
 end;
 
-procedure StartMenu(var map: GameMap; var bird: GameBird; var prop: GameProp);
+procedure StartMenu(
+		var map: GameMap;
+	       	var bird: GameBird;
+	       	var prop: GameProp;
+	       	var flew, recordflew, speed: integer);
 var
 	MenuSubs: GameMenuSubs;
 begin
-	InitAll(map, MenuSubs, bird, prop);
+	InitAll(map, MenuSubs, bird, prop, flew, recordflew, speed);
 	CheckScreen(map);
 	StartMessage(map);
-	ControlMenu(map, MenuSubs); 
+	ControlMenu(map, MenuSubs, recordflew); 
 	clrscr;
 end;
 
-procedure LoseEvent;
+procedure RecordCheck(flew, recordflew: integer);
+var
+	RecordFile: file of integer;
+begin
+	if flew > recordflew then
+	begin
+		assign(RecordFile, RecordFileName);
+		rewrite(RecordFile);
+		write(RecordFile, flew);
+		close(RecordFile);
+	end;
+end;
+
+procedure LoseEvent(flew, recordflew: integer);
 begin
 	GotoXY((ScreenWidth - 10) div 2, ScreenHeight div 2);
 	write('You lose...');
+	RecordCheck(flew, recordflew);
 	delay(2000);
 	clrscr;
 	halt;
-end;
-
-procedure WinEvent;
-begin
-
 end;
 
 procedure HideBird(bird: GameBird);
@@ -363,18 +398,29 @@ begin
 	end;
 end;
 
-procedure MoveProp(var prop: GameProp);
+procedure ShowFlew(flew: integer);
 begin
+	GotoXY((ScreenWidth - 8) div 2, 2);
+	write('Flew: ', flew, 'm');
+end;
+
+procedure MoveProp(var prop: GameProp; var flew: integer; speed: integer);
+begin
+	Delay(speed);
 	HideProp(prop);
 	if prop.CurX = prop.MaxCurX then
 		prop.CurX := prop.HomeX
 	else
 		prop.CurX := prop.CurX - 1;
 	ShowProp(prop);
-	
+	flew := flew + 1;
+	ShowFlew(flew);
 end;
 
-procedure CollisionCheck(bird: GameBird; prop: GameProp);
+procedure CollisionCheck(
+			bird: GameBird;
+		       	prop: GameProp;
+		       	flew, recordflew: integer);
 begin
 	if (bird.CurY + 1 = bird.MaxBottom) or
        	((bird.CurX = prop.CurX) and
@@ -383,7 +429,7 @@ begin
 		GotoXY(bird.CurX, bird.CurY);
 		write(bird.dead);
 		Delay(500);
-		LoseEvent;
+		LoseEvent(flew, recordflew);
 	end;
 
 
@@ -394,9 +440,10 @@ var
 	bird: GameBird;
 	prop: GameProp;
 	ch: char;
+	flew, recordflew, speed: integer;
 begin
 	randomize;
-	StartMenu(map, bird, prop);
+	StartMenu(map, bird, prop, flew, recordflew, speed);
 	DrawMap(map);
 	ShowBird(bird);
 	ShowProp(prop);
@@ -420,8 +467,7 @@ begin
 			bird.side := bottom;
 			MoveBird(bird);
 		end;
-		CollisionCheck(bird, prop);	
-		delay(200);
-		MoveProp(prop);
+		CollisionCheck(bird, prop, flew, recordflew);
+		MoveProp(prop, flew, speed);
 	end;
 end.
