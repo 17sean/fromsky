@@ -61,7 +61,7 @@ begin
 	MenuSubs[4].contain := 'Exit';
 
 	bird.CurX := map.HomeX + 4;
-	bird.CurY := map.HomeY + (map.h) div 2;
+	bird.CurY := map.HomeY + 6;
 	bird.MaxTop := map.HomeY;
 	bird.MaxBottom := map.HomeY + map.h;
 	bird.symb := '>';
@@ -71,15 +71,14 @@ begin
 	prop.HomeY := map.HomeY + 1;
 	prop.CurX := prop.HomeX;
 	prop.CurY := prop.HomeY;
-	prop.MaxCurX := map.HomeX + 1;
-
-	j := 4;
+	prop.MaxCurX := map.HomeX + 1;	
+	prop.symb := '|';
+	j := 6;
 	for i := 1 to 3 do
 	begin
-		prop.empty[i] := prop.CurY + j;
+		prop.empty[i] := map.HomeY + j;
 		j := j + 1;
 	end;
-	prop.symb := '|';
 end;
 
 procedure CheckScreen(map: GameMap);
@@ -340,35 +339,27 @@ begin
 	IsEmpty := false;
 end;
 
-procedure HideProp(prop: GameProp); { todo change for sravnit koordinati }
+procedure HideProp(prop: GameProp);
 var
-	i, CurX, CurY: integer;
+	i: integer;
 begin
-	CurX := prop.CurX;
-	CurY := prop.CurY;
-	GotoXY(CurX, prop.CurY);
-	for i := 1 to 12 do
+	for i := 0 to 11 do
 	begin
-		if not IsEmpty(prop, i) then
+		GotoXY(prop.CurX, prop.CurY+i);
+		if not IsEmpty(prop, prop.CurY+i) then
 			write(' ');
-		CurY := CurY + 1;
-		GotoXY(CurX, CurY);
 	end;
 end;
 
 procedure ShowProp(prop: GameProp);
 var
-	i, CurX, CurY: integer;
+	i: integer;
 begin
-	CurX := prop.CurX;
-	CurY := prop.CurY;
-	GotoXY(CurX, CurY);
-	for i := 1 to 12 do
+	for i := 0 to 11 do
 	begin
-		if not IsEmpty(prop, i) then
+		GotoXY(prop.CurX, prop.CurY+i);
+		if not IsEmpty(prop, prop.CurY+i) then
 			write(prop.symb);
-		CurY := CurY + 1;
-		GotoXY(CurX, CurY);
 	end;
 end;
 
@@ -384,21 +375,11 @@ begin
 end;
 
 procedure CollisionCheck(bird: GameBird; prop: GameProp);
-var
-	i: integer;
 begin
-	if (bird.CurY + 1 = bird.MaxBottom) then
+	if (bird.CurY + 1 = bird.MaxBottom) or
+       	((bird.CurX = prop.CurX) and
+       	(not IsEmpty(prop, bird.CurY))) then
 	begin
-		GotoXY(bird.CurX, bird.CurY);
-		write(bird.dead);
-		Delay(500);
-		LoseEvent;
-	end;
-	if (bird.CurX = prop.CurX) and (not IsEmpty(prop, bird.CurY)) then
-	begin
-		for i := 1 to 3 do
-			write(prop.empty[i], #9);
-		write(bird.CurY);
 		GotoXY(bird.CurX, bird.CurY);
 		write(bird.dead);
 		Delay(500);
@@ -419,7 +400,6 @@ begin
 	DrawMap(map);
 	ShowBird(bird);
 	ShowProp(prop);
-
 	while true do
 	begin
 		ch := #0;

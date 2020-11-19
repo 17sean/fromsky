@@ -1,5 +1,6 @@
-do more patterns of prop;
-do collision;
+do more patterns of prop in text file;
+
 make speed;
+
 make record;
 make show metres;
