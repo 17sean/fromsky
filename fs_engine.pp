@@ -27,25 +27,29 @@ type
 	end;
 
 procedure StartMenu(
-		var map: GameMap;
+		    var map: GameMap;
 	       	var bird: GameBird;
 	       	var prop: GameProp;
 	       	var flew, recordflew, speed: integer;
-		var fpattern: PPattern);
+		    var fpattern: PPattern);
+
 procedure StartOperations(
 			map: GameMap;
-		       	bird: GameBird;
+		    bird: GameBird;
 			prop: GameProp;
-		       	fpattern: PPattern;
-		       	var pattern: PPattern);
+		    fpattern: PPattern;
+		    var pattern: PPattern);
+
 procedure HandleArrowKey(var bird: GameBird);
+
 procedure CollisionCheck(
 			bird: GameBird;
-		       	prop: GameProp;
+		    prop: GameProp;
 			pattern: PPattern;
-		       	flew, recordflew: integer);
+		    flew, recordflew: integer);
+
 procedure MoveProp(
-		var prop: GameProp;
+		    var prop: GameProp;
 	       	var fpattern, pattern: PPattern;
 	       	var flew, speed: integer);
 
@@ -67,12 +71,12 @@ type
 	GameMenuSubs = array [1..4] of GameMenuSub;
 
 procedure InitAll(
-		var map: GameMap;
+		    var map: GameMap;
 	       	var MenuSubs: GameMenuSubs;
 	       	var bird: GameBird;
-		var prop: GameProp;
-		var flew, recordflew, speed: integer;
-		var fpattern: PPattern);
+		    var prop: GameProp;
+		    var flew, recordflew, speed: integer;
+		    var fpattern: PPattern);
 var
 	RecordFile: file of integer;
 	PatternFile: text;
@@ -163,13 +167,11 @@ end;
 
 procedure DrawMap(map: GameMap);
 var
-	i, j: integer;
-	x, y: integer;
+	x, y, i, j: integer;
 begin
 	x := map.HomeX;
 	y := map.HomeY;
 	GotoXY(x, y);
-
 	for i := 1 to map.h do
 	begin
 		for j := 1 to map.w do
@@ -196,7 +198,6 @@ begin
 					write(' ')
 			end;
 		end;
-
 		y := y + 1;
 		GotoXY(x, y);
 	end;
@@ -242,7 +243,7 @@ begin
 end;
 
 procedure DrawSubMenu(
-		Map: GameMap;
+		    Map: GameMap;
 	       	MenuSubs: GameMenuSubs;
 	       	recordflew: integer);
 begin
@@ -339,8 +340,6 @@ begin
 	end;
 end;
 
-
-
 procedure RecordCheck(flew, recordflew: integer);
 var
 	RecordFile: file of integer;
@@ -395,7 +394,6 @@ begin
 		end;
 	end;
 end;
-
 
 function RandomPattern(fpattern: PPattern): PPattern;
 var
@@ -463,7 +461,6 @@ begin
 		speed := round(speed * 0.9);
 end;
 
-
 procedure StartMenu(
 		var map: GameMap;
 	       	var bird: GameBird;
@@ -501,7 +498,7 @@ begin
 	ch := #0;
 	if KeyPressed then
 		ch := ReadKey;	
-	if ch = 'w' then
+	if ch in ['w', 'W'] then
 	begin
 		bird.side := top;
 		MoveBird(bird);
@@ -517,7 +514,6 @@ begin
 		MoveBird(bird);
 	end;
 end;
-
 
 procedure CollisionCheck(
 			bird: GameBird;
